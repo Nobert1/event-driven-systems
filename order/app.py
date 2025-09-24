@@ -10,7 +10,7 @@ import requests
 
 from msgspec import msgpack, Struct
 from flask import Flask, jsonify, abort, Response
-
+import pika
 
 DB_ERROR_STR = "DB error"
 REQ_ERROR_STR = "Requests error"
@@ -25,18 +25,26 @@ db: redis.Redis = redis.Redis(host=os.environ['REDIS_HOST'],
                               db=int(os.environ['REDIS_DB']))
 
 
+# define channels
+connection = pika.BlockingConnection(pika.ConnectionParameters(
+    host='rabbitmq', port=5672, heartbeat=600, blocked_connection_timeout=300))
+channel = connection.channel()
+channel.queue_declare(queue="stock", durable=True)
+channel.queue_declare(queue="payment", durable=True)
+channel.queue_declare(queue="order", durable=True)
+
 def close_db_connection():
     db.close()
-
 
 atexit.register(close_db_connection)
 
 
 class OrderValue(Struct):
-    paid: bool
     items: list[tuple[str, int]]
     user_id: str
     total_cost: int
+    paid: bool
+    stock_subtracted: bool
 
 
 def get_order_from_db(order_id: str) -> OrderValue | None:
@@ -77,6 +85,7 @@ def batch_init_users(n: int, n_items: int, n_users: int, item_price: int):
         item1_id = random.randint(0, n_items - 1)
         item2_id = random.randint(0, n_items - 1)
         value = OrderValue(paid=False,
+                           stock_subtracted=False,
                            items=[(f"{item1_id}", 1), (f"{item2_id}", 1)],
                            user_id=f"{user_id}",
                            total_cost=2*item_price)
@@ -100,7 +109,8 @@ def find_order(order_id: str):
             "paid": order_entry.paid,
             "items": order_entry.items,
             "user_id": order_entry.user_id,
-            "total_cost": order_entry.total_cost
+            "total_cost": order_entry.total_cost,
+            "stock_subtracted": order_entry.stock_subtracted
         }
     )
 
