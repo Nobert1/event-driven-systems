@@ -3,10 +3,10 @@ from events.base_event import BaseEvent
 from pydantic import BaseModel
 
 class StockItem(BaseModel):
-    itemId: str
+    item_id: str
     quantity: int
 
-class ReserveStock(BaseEvent):
-    name: ClassVar[str] = 'reserve stock'
+class ReserveStockEvent(BaseEvent):
+    name = 'reserve stock'
     order_id: str
     stock_items: list[StockItem]

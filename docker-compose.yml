@@ -24,10 +24,42 @@ services:
       - order-service
       - stock-service
       - payment-service
+  stock-service:
+    build:
+      context: .
+      dockerfile: stock-service/Dockerfile
+    image: stock-service:latest
+    environment:
+      - GATEWAY_URL=http://gateway:80
+    command: gunicorn -b 0.0.0.0:5000 -w 2 --timeout 30 --log-level=info app:app
+    env_file:
+      - env/stock_redis.env
+    depends_on:
+      stock-db:
+        condition: service_started
+  
+
+
+  payment-service:
+    build:
+      context: .
+      dockerfile: payment-service/Dockerfile
+    image: payment-service:latest
+    environment:
+      - GATEWAY_URL=http://gateway:80
+    command: gunicorn -b 0.0.0.0:5000 -w 2 --timeout 30 --log-level=info app:app
+    env_file:
+      - env/payment_redis.env
+    depends_on:
+      payment-db:
+        condition: service_started
+
 
   order-service:
-    build: ./order
-    image: order:latest
+    build:
+      context: .
+      dockerfile: order-service/Dockerfile
+    image: order-service:latest
     environment:
       - GATEWAY_URL=http://gateway:80
     command: gunicorn -b 0.0.0.0:5000 -w 2 --timeout 30 --log-level=info app:app
@@ -43,25 +75,46 @@ services:
     image: redis:7.2-bookworm
     command: redis-server --requirepass redis --maxmemory 512mb
 
-  stock-service:
-    build: ./stock
-    image: stock:latest
+  stock-consumer:
+    build:
+      context: .
+      dockerfile: stock-consumer/Dockerfile
+    image: stock-consumer:latest
     command: python consumer.py
     env_file:
       - env/stock_redis.env
     depends_on:
       rabbitmq:
         condition: service_healthy
-      stock-db:
+      payment-db:
         condition: service_started
+
+  order-consumer:
+    build:
+      context: .
+      dockerfile: order-consumer/Dockerfile
+    image: order-consumer:latest
+    command: python consumer.py
+    env_file:
+      - env/order_redis.env
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      order-db:
+        condition: service_started
+
+
+      
 
   stock-db:
     image: redis:7.2-bookworm
     command: redis-server --requirepass redis --maxmemory 512mb
 
-  payment-service:
-    build: ./payment
-    image: user:latest
+  payment-consumer:
+    build:
+      context: .
+      dockerfile: payment-consumer/Dockerfile
+    image: payment-consumer:latest
     command: python consumer.py
     env_file:
       - env/payment_redis.env
@@ -70,6 +123,7 @@ services:
         condition: service_healthy
       payment-db:
         condition: service_started
+
 
   payment-db:
     image: redis:7.2-bookworm

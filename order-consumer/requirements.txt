@@ -1,0 +1,5 @@
+redis==5.0.3
+gunicorn==21.2.0
+pika==1.3.2
+pydantic
+msgspec==0.18.6
