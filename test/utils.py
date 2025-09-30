@@ -1,7 +1,5 @@
 import requests
 import os
-import redis
-from dotenv import load_dotenv
 
 ORDER_URL = STOCK_URL = PAYMENT_URL = "http://127.0.0.1:8000"
 
@@ -49,7 +47,6 @@ def add_credit_to_user(user_id: str, amount: float) -> int:
 ########################################################################################################################
 def create_order(user_id: str) -> dict:
     response = requests.post(f"{ORDER_URL}/orders/create/{user_id}")
-    print("response", response)
     return response.json()
 
 def add_item_to_order(order_id: str, item_id: str, quantity: int) -> int:
@@ -73,28 +70,3 @@ def status_code_is_success(status_code: int) -> bool:
 
 def status_code_is_failure(status_code: int) -> bool:
     return 400 <= status_code < 500
-
-def _get_db() -> redis.Redis:
-    
-    db: redis.Redis = redis.Redis(host=os.environ['REDIS_HOST'],
-                              port=int(os.environ['REDIS_PORT']),
-                              password=os.environ['REDIS_PASSWORD'],
-                              db=int(os.environ['REDIS_DB']))
-    return db
-
-
-def get_order_db() -> redis.Redis:
-    env_file = "./env/order_redis.env"  # Change this to .env.staging or .env.prod
-    load_dotenv(dotenv_path=env_file)
-    return _get_db()
-
-
-def get_stock_db() -> redis.Redis:
-    env_file = "./env/stock_redis.env"  # Change this to .env.staging or .env.prod
-    load_dotenv(dotenv_path=env_file)
-    return _get_db()
-
-def get_payment_db() -> redis.Redis:
-    env_file = "./env/payment_redis.env"  # Change this to .env.staging or .env.prod
-    load_dotenv(dotenv_path=env_file)
-    return _get_db()

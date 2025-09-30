@@ -1,7 +1,6 @@
 import time
 import unittest
 import uuid
-import redis
 import utils as tu
 
 
@@ -81,7 +80,6 @@ class TestMicroservices(unittest.TestCase):
         self.assertIn('user_id', user)
 
         user_id: str = user['user_id']
-        print("user_id", user_id)
 
         # Test /users/credit/add/<user_id>/<amount>
         add_credit_response = tu.add_credit_to_user(user_id, 15)
@@ -102,27 +100,58 @@ class TestMicroservices(unittest.TestCase):
         self.assertIn('order_id', order)
 
         order_id: str = order['order_id']
-        print(order_id)
         add_item_response = tu.add_item_to_order(order_id, item_id, 1)
         self.assertTrue(tu.status_code_is_success(add_item_response))
 
-        add_item_response = tu.add_item_to_order(order_id, item_id, 1)
-        self.assertTrue(tu.status_code_is_success(add_item_response))
-        add_item_response = tu.add_item_to_order(order_id, item_id, 1)
-        self.assertTrue(tu.status_code_is_success(add_item_response))
-
-        checkout = tu.checkout_order(order_id).status_code
-        print(checkout)
+        tu.checkout_order(order_id).status_code
         time.sleep(1)
 
         order = tu.find_order(order_id)
-        print(order)
         assert order['payment_status'] == 'approved'
         assert order['stock_status'] == 'approved'
-
-    def test_order_declined(self):
-        pass
         
+
+    def test_checkout_payment_declined(self):
+        user: dict = tu.create_user()
+        self.assertIn('user_id', user)
+
+        user_id: str = user['user_id']
+
+        ## not enough credit
+        add_credit_response = tu.add_credit_to_user(user_id, 1)
+        self.assertTrue(tu.status_code_is_success(add_credit_response))
+
+        # add item to the stock service
+        item: dict = tu.create_item(5)
+        self.assertIn('item_id', item)
+
+        item_id: str = item['item_id']
+
+        add_stock_response = tu.add_stock(item_id, 50)
+        self.assertTrue(tu.status_code_is_success(add_stock_response))
+
+        # create order in the order service and add item to the order
+        order: dict = tu.create_order(user_id)
+        
+        self.assertIn('order_id', order)
+
+        order_id: str = order['order_id']
+        add_item_response = tu.add_item_to_order(order_id, item_id, 1)
+        self.assertTrue(tu.status_code_is_success(add_item_response))
+
+        self.assertTrue(tu.status_code_is_success(add_item_response))
+        self.assertTrue(tu.status_code_is_success(add_item_response))
+
+        tu.checkout_order(order_id).status_code
+        stock_after_checkout: int = tu.find_item(item_id)['stock']
+        self.assertEqual(stock_after_checkout, 49)
+        time.sleep(1)
+        
+        
+        order = tu.find_order(order_id)
+        assert order['payment_status'] == 'rejected'
+        assert order['stock_status'] == 'approved'
+            
 
 
     

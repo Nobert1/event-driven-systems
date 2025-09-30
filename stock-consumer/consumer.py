@@ -77,25 +77,28 @@ def add_stock(item_id: str, amount: int):
 def remove_stock(event: ReserveStockEvent):
     try:
         updated_stock_items = []
-        for stock_item in event.stock_items:
-            db_stock_item = get_item_from_db(stock_item.item_id)
-            if db_stock_item.stock >= stock_item.quantity:
+        logger.info(event.model_dump())
+        for event_stock_item in event.stock_items:
+            db_stock_item = get_item_from_db(event_stock_item.item_id)
+            logger.info(db_stock_item)
+            if db_stock_item.stock >= event_stock_item.quantity:
                 updated_stock_items.append((
-                    stock_item.item_id, msgpack.encode(StockValue(stock=db_stock_item.stock - stock_item.quantity, price=db_stock_item.price))
+                    event_stock_item.item_id, msgpack.encode(StockValue(stock=db_stock_item.stock - event_stock_item.quantity, price=db_stock_item.price))
                 ))
+            else:
+                raise Exception("Not enough stock, now what?")
+        logger.info(updated_stock_items)
         for item in updated_stock_items:
             db.set(
                 item[0], item[1]
             )
-            publish_order_event(
-                ReserveStockSucessfull(
+        publish_order_event(
+            ReserveStockSucessfull(
                     order_id=event.order_id
-                )
             )
+        )
     except Exception as e:
         logger.error(str(e))
-
-
 
 def callback(ch, method, properties, body: bytes):
     decoded_body = body.decode()
