@@ -127,7 +127,7 @@ class TestMicroservices(unittest.TestCase):
 
         item_id: str = item['item_id']
 
-        add_stock_response = tu.add_stock(item_id, 50)
+        add_stock_response = tu.add_stock(item_id, 1)
         self.assertTrue(tu.status_code_is_success(add_stock_response))
 
         # create order in the order service and add item to the order
@@ -144,9 +144,8 @@ class TestMicroservices(unittest.TestCase):
 
         tu.checkout_order(order_id).status_code
         stock_after_checkout: int = tu.find_item(item_id)['stock']
-        self.assertEqual(stock_after_checkout, 49)
+        self.assertEqual(stock_after_checkout, 0)
         time.sleep(1)
-        
         
         order = tu.find_order(order_id)
         assert order['payment_status'] == 'rejected'
